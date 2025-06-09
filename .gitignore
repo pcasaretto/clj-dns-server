@@ -1,0 +1,15 @@
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
+.clj-kondo
+.cpcache
+.lsp
+.nrepl-port
+codecrafters.yml
+your_program.sh
