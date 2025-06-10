@@ -5,7 +5,7 @@
 (defn start
   "Starts all mount components"
   []
-  (mount/start))
+  (mount/start-with-args {:port 2053}))
 
 (defn stop
   "Stops all mount components"
