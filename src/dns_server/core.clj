@@ -1,18 +1,19 @@
 (ns dns-server.core
   (:require
    [dns-server.udp.socket :as socket]
+   [dns-server.dns.message :as message]
    [mount.core :as mount :refer [defstate]]
-   [clojure.core.async :as async :refer [<!! >!! <! >!]]
+   [clojure.core.async :as async :refer [<!]]
    [clojure.tools.cli :refer [parse-opts]])
   (:import (java.net DatagramPacket)))
 
-
-(defn packet->map [packet]
+(defn packet->packetmap [packet]
   {:address (.getAddress packet)
    :port (.getPort packet)
    :data (.getData packet)})
 
 (defn packetmap->out-packet [m]
+  (println (message/parse-header (:data m)))
   (DatagramPacket. (:data m) (alength (:data m)) (:address m) (:port m)))
 
 (defn send-packet [socket]
@@ -20,7 +21,7 @@
 
 (defn process [socket]
   (comp
-   (map packet->map)
+   (map packet->packetmap)
    (map packetmap->out-packet)
    (map (send-packet socket))))
 
