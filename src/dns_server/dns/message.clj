@@ -1,6 +1,8 @@
 (ns dns-server.dns.message
   (:require [clojure.spec.alpha :as s]))
 
+(defmacro dbg[x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
+
 ;; DNS message header specs
 (s/def ::id (s/int-in 0 65536))  ;; 16-bit unsigned integer (0-65535)
 (s/def ::qr #{0 1})              ;; 1 bit: 0=query, 1=response
@@ -75,6 +77,39 @@
           (if (some? header)
             (recur rest bytes header))))
        header)))
+
+(defn serialize
+  "Serializes value, returns a byte array"
+  [values]
+  (byte-array values))
+
+(defn pack-flags [header]
+  (let [high (bit-or
+               (bit-shift-left (::qr header) 7)
+               (bit-shift-left (::opcode header) 3)
+               (bit-shift-left (::aa header) 2)
+               (bit-shift-left (::tc header) 1)
+               (::rd header))
+        low (bit-or
+                (bit-shift-left (::ra header) 7)
+                (bit-shift-left (::z header) 4)
+                (::rcode header))]
+     [high low]))
+
+(defn pack-16-bit [n]
+ (let [high (bit-and 0xFF00 n)
+       low (bit-and 0xFF n)]
+   [(bit-shift-right high 8) low]))
+
+(defn serialize-header [header]
+  (serialize
+   (dbg (flatten
+         [(pack-16-bit (::id header))
+          (pack-flags header)
+          (pack-16-bit (::qdcount header))
+          (pack-16-bit (::ancount header))
+          (pack-16-bit (::nscount header))
+          (pack-16-bit (::arcount header))]))))
 
 (defn valid-header?
   "Check if a header is valid according to the spec"

@@ -7,30 +7,27 @@
    [clojure.tools.cli :refer [parse-opts]])
   (:import (java.net DatagramPacket)))
 
-(defn packet->packetmap [packet]
-  {:address (.getAddress packet)
-   :port (.getPort packet)
-   :data (.getData packet)})
+(def static-header #:dns-server.dns.message {:id 1234 :qr 1 :opcode 0 :aa 0 :tc 0 :rd 0 ;
+                                             :ra 0 :z 0 :rcode 0 :qdcount 0 :ancount 0
+                                             :nscount 0 :arcount 0})
 
-(defn packetmap->out-packet [m]
-  (println (message/parse-header (:data m)))
-  (DatagramPacket. (:data m) (alength (:data m)) (:address m) (:port m)))
-
-(defn send-packet [socket]
-  (fn [packet] (.send socket packet) :ok))
-
-(defn process [socket]
-  (comp
-   (map packet->packetmap)
-   (map packetmap->out-packet)
-   (map (send-packet socket))))
+(defn receive-packet [socket]
+  (fn [packet]
+    (let [m {:address (.getAddress packet)
+              :port (.getPort packet)
+              :data (.getData packet)}
+          header (message/parse-header (:data m))
+          data (message/serialize-header static-header)
+          packet (DatagramPacket. data (alength data) (:address m) (:port m))]
+      (.send socket packet))
+    :ok))
 
 (defn start-receiver [{:keys [port]}]
   (let [close-chan (async/chan)
         packet-chan (async/chan)
         socket (socket/listen packet-chan close-chan port)
         cb (async/chan)]
-    (async/pipeline 1 cb (process socket) packet-chan)
+    (async/pipeline 1 cb (map (receive-packet socket)) packet-chan)
     (async/go-loop [res (<! cb)] (println res) (recur (<! cb)))
     close-chan))
 
